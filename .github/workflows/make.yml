@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: make-edge-wim
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -66,7 +66,7 @@ jobs:
           if (gh release view "v$version" *> $null) {
             Write-Host "Release v$version already exists."
           } else {
-            gh release create "v$version" ".\Edge_Version.txt" --latest
+            gh release create "v$version" ".\Edge_Version.txt" --latest --title "Edge $version" --notes "Automatically built Edge $version wim files"
           }
 
   build:
