@@ -1,13 +1,13 @@
 #Requires -Version 7
-$ErrorActionPreference = 'Stop'
-
 param (
     [string]$Architecture = "x64",
     [switch]$CheckOnly
 )
 
+$ErrorActionPreference = 'Stop'
+
 # Ensure Administrator privileges
-if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+if (-not $CheckOnly -and -not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     throw "This script must be run as an administrator."
 }
 
@@ -20,7 +20,7 @@ $edgeVersion = $edgeRelease.ProductVersion
 Write-Host "Latest stable Edge version: $edgeVersion"
 
 if ($CheckOnly) {
-    $edgeVersion | Out-File -FilePath ".\Edge_Version.txt" -Force -Encoding UTF8
+    $edgeVersion | Out-File -FilePath ".\Edge_Version.txt" -Force -Encoding UTF8 -NoNewline
     Write-Host "Check only mode enabled. Exiting."
     return
 }
