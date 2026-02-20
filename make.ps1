@@ -25,6 +25,27 @@ if ($CheckOnly) {
     return
 }
 
+# Ensure Dependencies
+
+function Test-SHA256 ([hashtable]$Hashes) { return Test-Hashes -Hashes $Hashes -Algorithm "SHA256" }
+
+New-Item ".\bin" -ItemType Directory -Force
+New-Item ".\temp" -ItemType Directory -Force
+
+if (-not (Test-Path -Path ".\bin\wimlib-imagex.exe")) {
+    Write-Host "wimlib-imagex not found, downloading..."
+    Invoke-WebRequest -Uri 'https://github.com/user-attachments/files/25449494/wimlib-1.14.5-windows-x86_64-bin.zip' -OutFile ".\temp\wimlib.zip"
+    Expand-Archive -Path ".\temp\wimlib.zip" -DestinationPath ".\temp\wimlib" -Force
+    Copy-Item -Path ".\temp\wimlib\wimlib-imagex.exe" -Destination ".\bin\wimlib-imagex.exe"
+    Copy-Item -Path ".\temp\wimlib\libwim-15.dll" -Destination ".\bin\libwim-15.dll"
+}
+Test-SHA256 @{ 
+    ".\bin\wimlib-imagex.exe" = "34C0C4165591AD1F592837ED99D08273C58D6ED3FE0ED6360CF34E7B0739B353"
+    ".\bin\libwim-15.dll"     = "BA853EE1E3FC5F5798581F02E8E066BA07A0A2375F0BF444FE981431FD508495"
+}
+
+$env:PATH = "$((Resolve-Path .\bin).Path);$env:PATH"
+
 # Download the Edge installer MSI
 Invoke-WebRequest -Uri $edgeArtifact.Location -OutFile ".\EdgeEnt.msi"
 if ((Get-FileHash -Path ".\EdgeEnt.msi" -Algorithm $edgeArtifact.HashAlgorithm).Hash -ne $edgeArtifact.Hash) {
