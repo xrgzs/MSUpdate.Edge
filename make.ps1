@@ -18,9 +18,9 @@ $edgeRelease = $edgeStable.Releases | Where-Object { $_.Platform -eq 'Windows' -
 $edgeArtifact = $edgeRelease.Artifacts | Where-Object { $_.ArtifactName -eq 'msi' } | Select-Object -first 1 
 $edgeVersion = $edgeRelease.ProductVersion
 Write-Host "Latest stable Edge version: $edgeVersion"
+$edgeVersion | Out-File -FilePath ".\Edge_Version.txt" -Force -Encoding UTF8 -NoNewline
 
 if ($CheckOnly) {
-    $edgeVersion | Out-File -FilePath ".\Edge_Version.txt" -Force -Encoding UTF8 -NoNewline
     Write-Host "Check only mode enabled. Exiting."
     return
 }

@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: make-edge-wim
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -38,7 +38,8 @@ jobs:
           $version = Get-Content ".\Edge_Version.txt"
           echo "current_version=$version" >> $env:GITHUB_OUTPUT
           git add ".\Edge_Version.txt"
-          if (git diff --cached --quiet) {
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
             Write-Host "No new Edge version detected. Skipping commit."
             echo "update_needed=false" >> $env:GITHUB_OUTPUT
           } else {
