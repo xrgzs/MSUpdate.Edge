@@ -25,12 +25,33 @@ if ($CheckOnly) {
     return
 }
 
-# Ensure Dependencies
-
-function Test-SHA256 ([hashtable]$Hashes) { return Test-Hashes -Hashes $Hashes -Algorithm "SHA256" }
-
+# Prepare directories
 New-Item ".\bin" -ItemType Directory -Force
 New-Item ".\temp" -ItemType Directory -Force
+
+# Installing dependencies
+function Test-Hashes {
+    param (
+        [hashtable]$Hashes,
+        [string]$Algorithm
+    )
+    return $Hashes.GetEnumerator() | ForEach-Object {
+        $file = $_.Key
+        $expectedHash = $_.Value
+        Write-Host -ForegroundColor Blue "Verifying $file $Algorithm hash ..."
+        Write-Host -ForegroundColor Gray "Expected: $expectedHash"
+        $actualHash = (Get-FileHash -Path $file -Algorithm $Algorithm).Hash
+        Write-Host -ForegroundColor Gray "Actual  : $actualHash"
+        if ($actualHash -ne $expectedHash) {
+            # return $false
+            Write-Error "$file hash not match."
+        } else {
+            Write-Host -ForegroundColor Green "$file hash match."
+        }
+    }
+}
+
+function Test-SHA256 ([hashtable]$Hashes) { return Test-Hashes -Hashes $Hashes -Algorithm "SHA256" }
 
 if (-not (Test-Path -Path ".\bin\wimlib-imagex.exe")) {
     Write-Host "wimlib-imagex not found, downloading..."
