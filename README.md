@@ -8,18 +8,35 @@ Prerequisites:
 
 - Windows 11 22000+ (`C:\Windows\System32\Dism\EdgeProvider.dll`)
 
-```cmd
-mkdir D:\Edge
-curl.exe -sSLo "D:\Edge\Edge.wim" "https://github.com/xrgzs/MSUpdate.Edge/releases/latest/download/Edge_x64.wim"
+  ```cmd
+  mkdir D:\Edge
+  curl.exe -sSLo "D:\Edge\Edge.wim" "https://github.com/xrgzs/MSUpdate.Edge/releases/latest/download/Edge_x64.wim"
 
-mkdir D:\Mount
-DISM.exe /Mount-Image /ImageFile:D:\Setup\sources\install.wim /Index:1 /MountDir:D:\Mount
+  mkdir D:\Mount
+  DISM.exe /Mount-Image /ImageFile:D:\Setup\sources\install.wim /Index:1 /MountDir:D:\Mount
 
-DISM.exe /Image:D:\Mount /Remove-Edge
-DISM.exe /Image:D:\Mount /Add-Edge /SupportPath:D:\Edge
+  DISM.exe /Image:D:\Mount /Remove-Edge
+  DISM.exe /Image:D:\Mount /Add-Edge /SupportPath:D:\Edge
 
-DISM.exe /Unmount-Image /MountDir:D:\Mount /Commit
-```
+  DISM.exe /Unmount-Image /MountDir:D:\Mount /Commit
+  ```
+
+- For lower versions, you can copy `EdgeProvider.dll`, `DismProv.dll` from a Windows 11 22000+ machine to `C:\Windows\System32\Dism\`.
+
+  You can get them here: https://github.com/xrgzs/MSUpdate/issues/1#issuecomment-3937346704
+
+  ```cmd
+  ren "C:\Windows\System32\Dism\DismProv.dll" "DismProv.dll.bak"
+  copy "D:\Edge\EdgeProvider.dll" "C:\Windows\System32\Dism\EdgeProvider.dll"
+  copy "D:\Edge\DismProv.dll" "C:\Windows\System32\Dism\DismProv.dll"
+
+  DISM.exe /Image:D:\Mount /Remove-Edge
+  DISM.exe /Image:D:\Mount /Add-Edge /SupportPath:D:\Edge
+
+  del "C:\Windows\System32\Dism\EdgeProvider.dll"
+  del "C:\Windows\System32\Dism\DismProv.dll"
+  ren "C:\Windows\System32\Dism\DismProv.dll.bak" "DismProv.dll"
+  ```
 
 ## Build
 
