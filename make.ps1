@@ -110,7 +110,12 @@ if ([string]::IsNullOrEmpty($edgeUpdateVersion)) {
 Write-Host "EdgeUpdate version: $edgeUpdateVersion"
 
 # Extract MSEDGE.7Z from Edge installer without EdgeUpdate
-7z e -y ".\MicrosoftEdge.exe" "MSEDGE.7z" || throw "Failed to extract MSEDGE.7Z from Edge installer"
+7z e -y -t* ".\MicrosoftEdge.exe" ".rsrc\B7\MSEDGE.PACKED.7Z" || throw "Failed to extract MSEDGE.PACKED.7Z from Edge installer"
+7z e -y -t* ".\MicrosoftEdge.exe" ".rsrc\BL\SETUP.EX_" || throw "Failed to extract SETUP.EX_ from Edge installer"
+7z e -y ".\MSEDGE.PACKED.7Z" "MSEDGE.7z" || throw "Failed to extract MSEDGE.7Z from Edge installer"
+Remove-Item ".\MSEDGE.PACKED.7Z"
+7z e -y ".\SETUP.EX_" "setup.exe" || throw "Failed to extract setup.exe from Edge installer"
+Remove-Item ".\SETUP.EX_"
 Remove-Item ".\MicrosoftEdge.exe"
 
 # Prepare "C:\Program Files (x86)\Microsoft" for packaging Edge.wim
@@ -125,6 +130,7 @@ Copy-Item ".\EdgeContent\EdgeUpdate\$edgeUpdateVersion\CopilotUpdate.exe" ".\Edg
 
 7z x -y ".\MSEDGE.7z" -o".\EdgeContent" || throw "Failed to extract MSEDGE.7z to .\EdgeContent\Chrome-bin"
 Rename-Item ".\EdgeContent\Chrome-bin" "EdgeCore"
+Move-Item ".\setup.exe" ".\EdgeContent\EdgeCore\$edgeVersion\Installer" -Force
 Remove-Item ".\MSEDGE.7z"
 
 New-Item ".\EdgeContent\Edge\Application\$edgeVersion" -ItemType Directory -Force
