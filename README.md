@@ -4,6 +4,10 @@ Create `Edge.wim` for `DISM.exe /Add-Edge` command. All files are downloaded fro
 
 ## Usage
 
+Prerequisites:
+
+- Windows 11 22000+ (`C:\Windows\System32\Dism\EdgeProvider.dll`)
+
 ```cmd
 mkdir D:\Edge
 curl.exe -sSLo "D:\Edge\Edge.wim" "https://github.com/xrgzs/MSUpdate.Edge/releases/latest/download/Edge_x64.wim"
