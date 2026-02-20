@@ -1,0 +1,6 @@
+{
+    "powershell.codeFormatting.preset": "OTBS",
+    "editor.formatOnSaveMode": "file",
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true
+}

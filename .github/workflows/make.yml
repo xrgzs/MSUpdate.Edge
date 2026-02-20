@@ -1,0 +1,94 @@
+name: Make Edge.wim
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Runs at 20 minutes past the hour, every 12 hours, starting at 04:00.
+    - cron: "20 4/12 * * *"
+
+concurrency:
+  group: make-edge-wim
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: windows-latest
+    outputs:
+      update_needed: ${{ steps.check_edge.outputs.update_needed }}
+      current_version: ${{ steps.check_edge.outputs.current_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Git user
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Check for Edge updates
+        id: check_edge
+        shell: pwsh
+        run: |
+          .\make.ps1 -CheckOnly
+          $version = Get-Content ".\Edge_Version.txt"
+          echo "current_version=$version" >> $GITHUB_OUTPUT
+          git add ".\Edge_Version.txt"
+          if (git diff --cached --quiet) {
+            Write-Host "No new Edge version detected. Skipping commit."
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          } else {
+            git commit -m "Update Edge version to $version"
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+          }
+
+      - name: Create tag and push changes
+        if: steps.check_edge.outputs.update_needed == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.check_edge.outputs.current_version }}"
+
+          git push
+
+          if (git ls-remote --tags origin "refs/tags/v$version") {
+            Write-Host "Tag v$version already exists."
+          } else {
+            git tag "v$version"
+            git push origin "v$version"
+          }
+
+          if (gh release view "v$version" *> $null) {
+            Write-Host "Release v$version already exists."
+          } else {
+            gh release create "v$version" ".\Edge_Version.txt" --latest
+          }
+
+  build:
+    needs: check
+    if: needs.check.outputs.update_needed == 'true'
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        architecture: [x86, x64, arm64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Edge.wim for ${{ matrix.architecture }}
+        shell: pwsh
+        run: .\make.ps1 -Architecture ${{ matrix.architecture }}
+
+      - name: Upload Edge.wim to release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = Get-Content ".\Edge_Version.txt"
+          gh release upload "v$version" "Edge_${{ matrix.architecture }}.wim" --clobber
