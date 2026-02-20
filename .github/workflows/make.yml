@@ -36,14 +36,14 @@ jobs:
         run: |
           .\make.ps1 -CheckOnly
           $version = Get-Content ".\Edge_Version.txt"
-          echo "current_version=$version" >> $GITHUB_OUTPUT
+          echo "current_version=$version" >> $env:GITHUB_OUTPUT
           git add ".\Edge_Version.txt"
           if (git diff --cached --quiet) {
             Write-Host "No new Edge version detected. Skipping commit."
-            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "update_needed=false" >> $env:GITHUB_OUTPUT
           } else {
             git commit -m "Update Edge version to $version"
-            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> $env:GITHUB_OUTPUT
           }
 
       - name: Create tag and push changes
