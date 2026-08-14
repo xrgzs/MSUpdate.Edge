@@ -136,7 +136,7 @@ Remove-Item ".\MSEDGE.7z"
 New-Item ".\EdgeContent\Edge\Application\$edgeVersion" -ItemType Directory -Force
 Copy-Item ".\EdgeContent\EdgeCore\$edgeVersion\Edge.dat" ".\EdgeContent\Edge" -Force
 Copy-Item ".\EdgeContent\EdgeCore\$edgeVersion\*" ".\EdgeContent\Edge\Application\$edgeVersion" -Recurse -Force
-Copy-Item ".\EdgeContent\EdgeCore\$edgeVersion\delegatedWebFeatures.sccd" ".\EdgeContent\Edge\Application" -Force
+Copy-Item ".\EdgeContent\EdgeCore\$edgeVersion\delegatedWebFeatures.sccd" ".\EdgeContent\Edge\Application" -Force -ErrorAction SilentlyContinue
 Copy-Item ".\EdgeContent\EdgeCore\$edgeVersion\msedge.exe" ".\EdgeContent\Edge\Application" -Force
 Copy-Item ".\EdgeContent\EdgeCore\$edgeVersion\msedge_proxy.exe" ".\EdgeContent\Edge\Application" -Force
 Copy-Item ".\EdgeContent\EdgeCore\$edgeVersion\pwahelper.exe" ".\EdgeContent\Edge\Application" -Force

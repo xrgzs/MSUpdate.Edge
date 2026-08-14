@@ -25,49 +25,48 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Git user
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-
       - name: Check for Edge updates
         id: check_edge
-        shell: pwsh
-        run: |
-          .\make.ps1 -CheckOnly
-          $version = Get-Content ".\Edge_Version.txt"
-          echo "current_version=$version" >> $env:GITHUB_OUTPUT
-          git add ".\Edge_Version.txt"
-          git diff --cached --quiet
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "No new Edge version detected. Skipping commit."
-            echo "update_needed=false" >> $env:GITHUB_OUTPUT
-          } else {
-            git commit -m "Update Edge version to $version"
-            echo "update_needed=true" >> $env:GITHUB_OUTPUT
-          }
-
-      - name: Create tag and push changes
-        if: steps.check_edge.outputs.update_needed == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = "${{ steps.check_edge.outputs.current_version }}"
+          .\make.ps1 -CheckOnly
+          $version = Get-Content ".\Edge_Version.txt"
+          echo "current_version=$version" >> $env:GITHUB_OUTPUT
 
-          git push
-
-          if (git ls-remote --tags origin "refs/tags/v$version") {
-            Write-Host "Tag v$version already exists."
-          } else {
-            git tag "v$version"
-            git push origin "v$version"
+          git diff --quiet -- ".\Edge_Version.txt"
+          $versionChanged = $LASTEXITCODE -eq 1
+          if ($LASTEXITCODE -notin 0, 1) {
+            throw "Failed to compare Edge_Version.txt with the repository version."
           }
 
-          if (gh release view "v$version") {
-            Write-Host "Release v$version already exists."
+          $requiredAssets = @(
+            "Edge_Version.txt"
+            "Edge_x86.wim"
+            "Edge_x64.wim"
+            "Edge_arm64.wim"
+          )
+          $releaseJson = gh release view "v$version" --json assets 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $releaseAssets = @($releaseJson | ConvertFrom-Json | ForEach-Object { $_.assets.name })
           } else {
-            gh release create "v$version" ".\Edge_Version.txt" --latest --title "Edge $version" --notes "Automatically built Edge $version wim files"
+            Write-Host "Release v$version does not exist yet."
+            $releaseAssets = @()
+          }
+          $missingAssets = @($requiredAssets | Where-Object { $_ -notin $releaseAssets })
+
+          if ($versionChanged -or $missingAssets.Count -gt 0) {
+            if ($versionChanged) {
+              Write-Host "New Edge version detected: $version"
+            }
+            if ($missingAssets.Count -gt 0) {
+              Write-Host "Release v$version is missing: $($missingAssets -join ', ')"
+            }
+            echo "update_needed=true" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "Edge $version is already fully published."
+            echo "update_needed=false" >> $env:GITHUB_OUTPUT
           }
 
   build:
@@ -86,10 +85,78 @@ jobs:
         shell: pwsh
         run: .\make.ps1 -Architecture ${{ matrix.architecture }}
 
-      - name: Upload Edge.wim to release
+      - name: Store Edge.wim
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-${{ matrix.architecture }}
+          path: Edge_${{ matrix.architecture }}.wim
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  publish:
+    needs: [check, build]
+    if: needs.check.outputs.update_needed == 'true'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Edge.wim files
+        uses: actions/download-artifact@v4
+        with:
+          pattern: edge-*
+          merge-multiple: true
+
+      - name: Commit version and publish release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = Get-Content ".\Edge_Version.txt"
-          gh release upload "v$version" "Edge_${{ matrix.architecture }}.wim" --clobber
+          $version = "${{ needs.check.outputs.current_version }}"
+          $version | Out-File -FilePath ".\Edge_Version.txt" -Force -Encoding UTF8 -NoNewline
+
+          $requiredFiles = @(
+            ".\Edge_Version.txt"
+            ".\Edge_x86.wim"
+            ".\Edge_x64.wim"
+            ".\Edge_arm64.wim"
+          )
+          $missingFiles = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath $_) })
+          if ($missingFiles.Count -gt 0) {
+            throw "Cannot publish v$version because files are missing: $($missingFiles -join ', ')"
+          }
+
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add ".\Edge_Version.txt"
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 1) {
+            git commit -m "Update Edge version to $version" || throw "Failed to commit Edge version $version."
+            git push || throw "Failed to push Edge version $version."
+          } elseif ($LASTEXITCODE -ne 0) {
+            throw "Failed to inspect the staged Edge version change."
+          }
+
+          $remoteTag = git ls-remote --tags origin "refs/tags/v$version"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to query tag v$version."
+          }
+          if ($remoteTag) {
+            Write-Host "Tag v$version already exists."
+          } else {
+            git tag "v$version" || throw "Failed to create tag v$version."
+            git push origin "v$version" || throw "Failed to push tag v$version."
+          }
+
+          gh release view "v$version" --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release v$version already exists; replacing its assets."
+          } else {
+            gh release create "v$version" --draft --title "Edge $version" --notes "Automatically built Edge $version wim files" || throw "Failed to create draft release v$version."
+          }
+
+          gh release upload "v$version" @requiredFiles --clobber || throw "Failed to upload assets for release v$version."
+          gh release edit "v$version" --draft=false --latest || throw "Failed to publish release v$version."
