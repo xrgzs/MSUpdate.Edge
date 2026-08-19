@@ -48,7 +48,8 @@ jobs:
             "Edge_arm64.wim"
           )
           $releaseJson = gh release view "v$version" --json assets 2>$null
-          if ($LASTEXITCODE -eq 0) {
+          $releaseExists = $LASTEXITCODE -eq 0
+          if ($releaseExists) {
             $releaseAssets = @($releaseJson | ConvertFrom-Json | ForEach-Object { $_.assets.name })
           } else {
             Write-Host "Release v$version does not exist yet."
@@ -68,6 +69,10 @@ jobs:
             Write-Host "Edge $version is already fully published."
             echo "update_needed=false" >> $env:GITHUB_OUTPUT
           }
+
+          # Reset the exit code: git diff --quiet and gh release view may
+          # leave a non-zero $LASTEXITCODE, which would fail this step.
+          exit 0
 
   build:
     needs: check

@@ -74,13 +74,15 @@ if ((Get-FileHash -Path ".\EdgeEnt.msi" -Algorithm $edgeArtifact.HashAlgorithm).
 }
 
 # Extract the Edge installer EXE
-7z e -y ".\EdgeEnt.msi" "Binary.MicrosoftEdgeInstaller" || throw "Failed to extract Binary.MicrosoftEdgeInstaller from EdgeEnt.msi"
+7z e -y ".\EdgeEnt.msi" "Binary.MicrosoftEdgeInstaller"
+if ($LASTEXITCODE -ne 0) { throw "Failed to extract Binary.MicrosoftEdgeInstaller from EdgeEnt.msi" }
 Rename-Item ".\Binary.MicrosoftEdgeInstaller" ".\EdgeInstaller.exe"
 Remove-Item ".\EdgeEnt.msi"
 
 # EdgeInstaller.exe is a self-extracting Google Omaha installer.
 # Extract the LZMA resource from PE.
-7z e -y -t* ".\EdgeInstaller.exe" ".rsrc\0\B\102" || throw "Failed to extract .rsrc\0\B\102 from EdgeInstaller.exe"
+7z e -y -t* ".\EdgeInstaller.exe" ".rsrc\0\B\102"
+if ($LASTEXITCODE -ne 0) { throw "Failed to extract \.rsrc\0\B\102 from EdgeInstaller.exe" }
 if (-not (Test-Path ".\102")) {
     throw "Failed to extract the LZMA resource from EdgeInstaller.exe"
 }
@@ -88,7 +90,8 @@ Remove-Item ".\EdgeInstaller.exe"
 
 # This is a LZMA-compressed BCJ2 stream of tarball.
 # We temporarily extract it using a Python script written by Claude Opus 4.6.
-python extract_resource.py ".\102" ".\EdgeUpdateOffline" || throw "Failed to extract EdgeUpdateOffline from .\102"
+python extract_resource.py ".\102" ".\EdgeUpdateOffline"
+if ($LASTEXITCODE -ne 0) { throw "Failed to extract EdgeUpdateOffline from .\102" }
 Remove-Item ".\102"
 
 # The EdgeUpdateOffline contains:
@@ -110,11 +113,15 @@ if ([string]::IsNullOrEmpty($edgeUpdateVersion)) {
 Write-Host "EdgeUpdate version: $edgeUpdateVersion"
 
 # Extract MSEDGE.7Z from Edge installer without EdgeUpdate
-7z e -y -t* ".\MicrosoftEdge.exe" ".rsrc\B7\MSEDGE.PACKED.7Z" || throw "Failed to extract MSEDGE.PACKED.7Z from Edge installer"
-7z e -y -t* ".\MicrosoftEdge.exe" ".rsrc\BL\SETUP.EX_" || throw "Failed to extract SETUP.EX_ from Edge installer"
-7z e -y ".\MSEDGE.PACKED.7Z" "MSEDGE.7z" || throw "Failed to extract MSEDGE.7Z from Edge installer"
+7z e -y -t* ".\MicrosoftEdge.exe" ".rsrc\B7\MSEDGE.PACKED.7Z"
+if ($LASTEXITCODE -ne 0) { throw "Failed to extract MSEDGE.PACKED.7Z from Edge installer" }
+7z e -y -t* ".\MicrosoftEdge.exe" ".rsrc\BL\SETUP.EX_"
+if ($LASTEXITCODE -ne 0) { throw "Failed to extract SETUP.EX_ from Edge installer" }
+7z e -y ".\MSEDGE.PACKED.7Z" "MSEDGE.7z"
+if ($LASTEXITCODE -ne 0) { throw "Failed to extract MSEDGE.7Z from Edge installer" }
 Remove-Item ".\MSEDGE.PACKED.7Z"
-7z e -y ".\SETUP.EX_" "setup.exe" || throw "Failed to extract setup.exe from Edge installer"
+7z e -y ".\SETUP.EX_" "setup.exe"
+if ($LASTEXITCODE -ne 0) { throw "Failed to extract setup.exe from Edge installer" }
 Remove-Item ".\SETUP.EX_"
 Remove-Item ".\MicrosoftEdge.exe"
 
@@ -128,7 +135,8 @@ Copy-Item ".\EdgeContent\EdgeUpdate\$edgeUpdateVersion\EdgeUpdate.dat" ".\EdgeCo
 Copy-Item ".\EdgeContent\EdgeUpdate\$edgeUpdateVersion\MicrosoftEdgeUpdate.exe" ".\EdgeContent\EdgeUpdate\MicrosoftEdgeUpdate.exe" -Force
 Copy-Item ".\EdgeContent\EdgeUpdate\$edgeUpdateVersion\CopilotUpdate.exe" ".\EdgeContent\EdgeUpdate\CopilotUpdate.exe" -Force
 
-7z x -y ".\MSEDGE.7z" -o".\EdgeContent" || throw "Failed to extract MSEDGE.7z to .\EdgeContent\Chrome-bin"
+7z x -y ".\MSEDGE.7z" -o".\EdgeContent"
+if ($LASTEXITCODE -ne 0) { throw "Failed to extract MSEDGE.7z to .\EdgeContent\Chrome-bin" }
 Rename-Item ".\EdgeContent\Chrome-bin" "EdgeCore"
 Move-Item ".\setup.exe" ".\EdgeContent\EdgeCore\$edgeVersion\Installer" -Force
 Remove-Item ".\MSEDGE.7z"
@@ -158,4 +166,5 @@ Copy-Item ".\EdgeContent\EdgeCore\$edgeVersion\EdgeWebView.dat" ".\EdgeContent\E
 Copy-Item ".\EdgeContent\EdgeCore\$edgeVersion\*" ".\EdgeContent\EdgeWebView\Application\$edgeVersion" -Recurse -Force
 
 # Package Edge.wim
-wimlib-imagex.exe capture ".\EdgeContent" ".\Edge_$Architecture.wim" "EdgeContent" --compress=LZMS --solid || throw "Failed to create Edge.wim"
+wimlib-imagex.exe capture ".\EdgeContent" ".\Edge_$Architecture.wim" "EdgeContent" --compress=LZMS --solid
+if ($LASTEXITCODE -ne 0) { throw "Failed to create Edge.wim" }
